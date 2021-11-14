@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { useState, useEffect } from "react";
 import * as API from "./service/service-api";
 import Button from "./Components/Button/Button";
 import LoaderSpinner from "./Components/Loader/Loader";
@@ -10,87 +10,82 @@ import style from "./App.css";
 
 
 
-class App extends Component {
-
-  state = {
-  page: 1,
-  images: [],
-  searchQuery: '',
-  isLoading: false,
-  largeImage: '',
-  showModal: false,
-  error: null,
-  };
+function App () {
  
+  const [searchQuery, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [largeImage, setLargeImage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [isError, setIsError] = useState(false);
 
-  componentDidUpdate(prevProps, { searchQuery, page }) {
-    if (searchQuery !== this.state.searchQuery || page !== this.state.page) {
-      this.getImages()
-    }
-    if (this.state.page > 1) {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-  }
+  useEffect(() => {
 
-    onChangeName = (searchQuery) => {
-    this.setState({
-      searchQuery,
-      page: 1,
-      images: [],
-    });
-    };
-  
-  clickLoadMore = (e) => {
-     e.preventDefault();
-    this.setState((prevState) => {
-      return { page: prevState.page + 1 };
-    })
-  };
-
-  modalClose = () => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal
-    }));
-  };
-
-  onClickLargeImage = (imageModal) => {
-    this.setState({ largeImage: imageModal });
-    this.modalClose();
-  };
-
-  getImages = () => {
-    const { searchQuery, page } = this.state;
-    this.setState({ isLoading: true });
+    const getImages = () => {
+      if (!searchQuery) {
+        return;
+      }
+    setIsError(false);
+    setIsLoading(true);
 
     API.getImages({ searchQuery, page })
-      .then(response => {
-      this.setState(prevState => ({
-        images: [...prevState.images, ...mapper(response)],
-      }));
-    })
-    .catch((error) => this.setState({ error: error }))
-        .finally(() => this.setState({ isLoading: false }));
+      .then((response) => {
+        setImages((prevImages) => 
+          [...prevImages, ...mapper(response)],
+        );
+      })
+      .catch(error => {
+        setIsError(error);
+      })
+      .finally(() => {
+        setIsLoading(false);
+
+        if (page > 1) {
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: "smooth",
+            });
+          }
+        });
+    };
+    getImages();
+  }, [page, searchQuery]);
+
+const onChangeName = (searchQuery) => {
+    setQuery(searchQuery);
+    setPage(1);
+    setImages([]);
+    };
+  
+const clickLoadMore = () => {
+    setIsLoading(true);
+    setPage((prevPage) => prevPage + 1);
   };
 
-  render() {
-const {  images, showModal, isLoading, largeImage, searchQuery } = this.state;
-    return(
+const modalClose = () => {
+    setShowModal(!showModal);
+  };
+
+const onClickLargeImage = (imageModal) => {
+    setLargeImage(imageModal);
+    modalClose();
+  };
+
+  return(
       <div className={style.App}>
-        <Searchbar onSubmit={this.onChangeName} />
+        <Searchbar onSubmit={onChangeName} />
         
         {images.length !== 0 ? (
-          <ImageGallery images={images} onOpenModal={this.onClickLargeImage} />
+          <ImageGallery images={images} onOpenModal={onClickLargeImage} />
           ) : (
-          searchQuery !== '' && <p>No found image</p> 
+          isError && <p>No found image</p> 
         )}
         {isLoading && <LoaderSpinner />}
-        {images.length >= 12 && <Button onClick={this.clickLoadMore} />}
+        {images.length >= 12 && <Button onClick={clickLoadMore} />}
         {showModal && (
           <Modal
-            onClose={this.modalClose}
+            onClose={modalClose}
             imageModal={largeImage.largeImageURL}
           />
         )}
@@ -98,6 +93,5 @@ const {  images, showModal, isLoading, largeImage, searchQuery } = this.state;
       </div>
     );
   }
-}
 
 export default App;
